@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claim Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="flex h-screen">
+    <!-- Sidebar -->
+    <aside class="w-1/4 min-w-[250px] bg-white shadow-lg p-4 overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">Claims</h2>
+        <button id="newClaimBtn" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">New</button>
+      </div>
+      <input id="searchInput" placeholder="Search Claim ID..." class="w-full mb-4 p-2 border rounded" />
+      <ul id="claimList" class="space-y-2"></ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-y-auto bg-gray-50">
+      <div id="claimDetails" class="hidden">
+        <h2 class="text-2xl font-bold mb-4" id="claimTitle"></h2>
+        <p><strong>Policy ID:</strong> <span id="claimPolicyId"></span></p>
+        <p><strong>Date:</strong> <span id="claimDate"></span></p>
+        <p><strong>Time:</strong> <span id="claimTime"></span></p>
+        <p><strong>Weather:</strong> <span id="claimWeather"></span></p>
+        <p><strong>Amount:</strong> $<span id="claimAmount"></span></p>
+        <p><strong>Red Flags:</strong> <span id="claimRedFlags"></span></p>
+
+        <!-- Tabs -->
+        <div class="mt-6">
+          <div class="flex space-x-4 mb-4 border-b-2 border-gray-300">
+            <button class="tab-btn px-4 py-2 font-semibold text-gray-700 border-b-4 border-transparent hover:border-blue-500 hover:text-blue-600 transition" data-tab="summary">Summary</button>
+            <button class="tab-btn px-4 py-2 font-semibold text-gray-700 border-b-4 border-transparent hover:border-blue-500 hover:text-blue-600 transition" data-tab="fraud">Fraud Detected</button>
+            <button class="tab-btn px-4 py-2 font-semibold text-gray-700 border-b-4 border-transparent hover:border-blue-500 hover:text-blue-600 transition" data-tab="evidence">Evidences</button>
+          </div>
+          <div id="tabContent" class="bg-white p-6 rounded-lg shadow-md min-h-[200px]">
+            <p class="text-gray-500 italic">Select a tab to see more details.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="claimModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 hidden">
+    <div class="bg-white p-6 rounded-xl w-full max-w-2xl space-y-4 shadow-xl">
+      <h2 class="text-xl font-bold mb-4">Submit New Claim</h2>
+      <form id="claimForm" enctype="multipart/form-data" class="space-y-3">
+        <div class="grid grid-cols-2 gap-4">
+          <input name="policyId" placeholder="Policy ID" required class="w-full p-2 border rounded" />
+          <input name="claimId" placeholder="Claim ID" required class="w-full p-2 border rounded" />
+          <input name="accidentDate" type="date" required class="w-full p-2 border rounded" />
+          <input name="accidentTime" type="time" required class="w-full p-2 border rounded" />
+          <input name="weather" placeholder="Weather" required class="w-full p-2 border rounded" />
+          <input name="claimAmount" type="number" placeholder="Claim Amount" required class="w-full p-2 border rounded" />
+        </div>
+        <label class="block w-full p-4 border-2 border-dashed border-gray-300 rounded bg-white text-center cursor-pointer hover:border-blue-400">
+          <span id="fileLabel">Drag & drop files here or click to select</span>
+          <input id="fileInput" name="files" type="file" multiple hidden />
+        </label>
+        <div id="filePreview" class="flex flex-wrap gap-2 mt-2"></div>
+        <div class="flex justify-end gap-4 pt-4">
+          <button type="button" id="closeModalBtn" class="text-gray-500 hover:underline">Cancel</button>
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const claimList = document.getElementById("claimList");
+    const claimDetails = document.getElementById("claimDetails");
+    const claimTitle = document.getElementById("claimTitle");
+    const tabContent = document.getElementById("tabContent");
+    const claimForm = document.getElementById("claimForm");
+    const modal = document.getElementById("claimModal");
+    const submitBtn = claimForm.querySelector("button[type='submit']");
+    const formFields = [...claimForm.elements].filter(el => el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
+
+    const fileInput = document.getElementById("fileInput");
+    const filePreview = document.getElementById("filePreview");
+    let selectedFiles = [];
+
+    fileInput.addEventListener("change", (e) => {
+      selectedFiles = [...selectedFiles, ...fileInput.files];
+      updateFilePreview();
+    });
+
+    function updateFilePreview() {
+      filePreview.innerHTML = "";
+      selectedFiles.forEach((file, index) => {
+        const div = document.createElement("div");
+        div.className = "bg-gray-200 px-2 py-1 rounded flex items-center gap-2";
+        div.innerHTML = `${file.name} <button onclick="removeFile(${index})" class="text-red-500">&times;</button>`;
+        filePreview.appendChild(div);
+      });
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      updateFilePreview();
+    }
+
+    async function loadClaims(selectClaimId = null) {
+      const res = await fetch("/api/claim");
+      const data = await res.json();
+      claimList.innerHTML = "";
+      data.forEach(claim => {
+        const li = document.createElement("li");
+        li.className = "p-2 bg-gray-100 rounded hover:bg-blue-100 cursor-pointer";
+        li.textContent = `Claim: ${claim.claimId}`;
+        li.onclick = () => showClaim(claim);
+        claimList.appendChild(li);
+      });
+      if (selectClaimId) {
+        const selected = data.find(c => c.claimId === selectClaimId);
+        if (selected) showClaim(selected);
+      }
+    }
+
+    function showClaim(claim) {
+      document.getElementById("claimTitle").textContent = claim.claimId;
+      document.getElementById("claimPolicyId").textContent = claim.policyId;
+      document.getElementById("claimDate").textContent = claim.accidentDate;
+      document.getElementById("claimTime").textContent = claim.accidentTime;
+      document.getElementById("claimWeather").textContent = claim.weather;
+      document.getElementById("claimAmount").textContent = claim.claimAmount;
+      document.getElementById("claimRedFlags").textContent = claim.redFlagsCount;
+      tabContent.innerHTML = `<p class="text-gray-500 italic">Select a tab to see more details.</p>`;
+      claimDetails.classList.remove("hidden");
+
+      const tabButtons = document.querySelectorAll(".tab-btn");
+      tabButtons.forEach(btn => {
+        btn.onclick = () => {
+          tabButtons.forEach(b => b.classList.remove("border-blue-500", "text-blue-600"));
+          btn.classList.add("border-blue-500", "text-blue-600");
+          const tab = btn.getAttribute("data-tab");
+
+          if (tab === "summary") {
+            tabContent.innerHTML = claim.files?.length
+              ? claim.files.map(f => `<div class='mb-4'><p><strong>${f.filename}</strong></p><p class='text-gray-600'>${f.summary || "No summary available."}</p></div>`).join("")
+              : `<p>No summaries found.</p>`;
+          } else if (tab === "fraud") {
+            tabContent.innerHTML = claim.fraudList?.length
+              ? `<ul class="list-disc pl-6 text-gray-700">${claim.fraudList.map(item => `<li>${item}</li>`).join("")}</ul>`
+              : `<p>No fraud items reported.</p>`;
+          } else if (tab === "evidence") {
+            tabContent.innerHTML = claim.files?.length
+              ? `<ul class="space-y-2">${claim.files.map(f => `<li><a href="https://storage.googleapis.com/${f.gcs_uri.split('/')[2]}/${f.filename}" target="_blank" class="text-blue-600 underline hover:text-blue-800">${f.filename}</a> (${f.type})</li>`).join("")}</ul>`
+              : `<p>No evidence files uploaded.</p>`;
+          }
+        };
+      });
+    }
+
+    document.getElementById("newClaimBtn").onclick = () => {
+      selectedFiles = [];
+      updateFilePreview();
+      modal.classList.remove("hidden");
+    };
+
+    document.getElementById("closeModalBtn").onclick = () => modal.classList.add("hidden");
+
+    claimForm.onsubmit = async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
+      formFields.forEach(field => field.readOnly = true);
+      document.getElementById("closeModalBtn").disabled = true;
+
+      const formData = new FormData();
+      formFields.forEach(field => formData.append(field.name, field.value));
+      selectedFiles.forEach(file => formData.append("files", file));
+
+      try {
+        const res = await fetch("/api/claim", { method: "POST", body: formData });
+        const data = await res.json();
+        alert(data.message || "✅ Claim submitted successfully!");
+        modal.classList.add("hidden");
+        claimForm.reset();
+        await loadClaims(formData.get("claimId"));
+      } catch (err) {
+        alert("❌ Submission failed. Please try again.");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit";
+        formFields.forEach(field => field.readOnly = false);
+        document.getElementById("closeModalBtn").disabled = false;
+      }
+    };
+
+    loadClaims();
+  </script>
+</body>
+</html>

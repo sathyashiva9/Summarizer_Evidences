@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-gke-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-gke-app
+  template:
+    metadata:
+      labels:
+        app: node-gke-app
+    spec:
+      containers:
+      - name: node-gke-app
+        image: gcr.io/ltc-reboot25-team-21/claimai
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-gke-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: node-gke-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
