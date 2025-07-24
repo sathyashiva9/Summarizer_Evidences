@@ -17,6 +17,11 @@ spec:
         image: gcr.io/ltc-reboot25-team-21/claimai
         ports:
         - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: node-config     # 👈 Inject PORT, NODE_ENV
+        - secretRef:
+            name: node-secret     # 👈 Inject API_KEY
 ---
 apiVersion: v1
 kind: Service

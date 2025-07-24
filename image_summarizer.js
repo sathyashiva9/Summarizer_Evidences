@@ -8,7 +8,7 @@ const fs = require("fs").promises;
 
 dotenv.config();
 
-const API_KEY = process.env.GEMINI_API_KEY;
+const API_KEY = process.env.API_KEY;
 
 const storage = new Storage(); // Uses default GCP credentials (via Workload Identity or key file)
 

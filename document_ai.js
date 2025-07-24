@@ -30,7 +30,7 @@ function detectMimeType(gcsUri) {
 async function processDocumentFromGCS(gcsUri,folderType,userId) {
   const mimeType = detectMimeType(gcsUri);
   const  { GoogleGenerativeAI } =  require("@google/generative-ai");
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const genAI = new GoogleGenerativeAI(process.env.API_KEY);
   const model = genAI.getGenerativeModel({model:"gemini-1.5-flash"}); 
   const name = `projects/${projectId}/locations/${location}/processors/${processorId}`;
   const fileName = path.basename(gcsUri).replace(/\.[^/.]+$/, '');
